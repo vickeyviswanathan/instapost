@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viral Post Architect - Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-500: #4f46e5;
+            --primary-600: #4338ca;
+            --secondary-500: #ec4899;
+            --bg-light: #f8fafc;
+            --panel-light: #ffffff;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --border-light: #e2e8f0;
+            --success-green: #22c55e;
+            --error-red: #ef4444;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #4f46e5, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .panel {
+            background-color: var(--panel-light);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        }
+        .strategy-btn {
+            background-color: #f1f5f9;
+            color: var(--text-light);
+            transition: all 0.2s ease-in-out;
+        }
+        .strategy-btn.active {
+            box-shadow: 0 0 0 2px var(--primary-500);
+            background-color: #eef2ff;
+            color: var(--primary-600);
+            font-weight: 600;
+        }
+        .custom-select, input[type="text"], input[type="password"] {
+            background-color: #f1f5f9;
+            border: 1px solid var(--border-light);
+            color: var(--text-dark);
+        }
+        .custom-select:focus, input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary-500);
+            border-color: var(--primary-500);
+        }
+        .shimmer {
+            animation: shimmer 1.5s infinite linear;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        #loading-overlay, .modal { backdrop-filter: blur(8px); }
+        .action-overlay { opacity: 0; transition: opacity 0.3s ease; }
+        .image-container:hover .action-overlay { opacity: 1; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        [contenteditable]:focus { outline: 2px solid var(--primary-500); box-shadow: 0 0 5px var(--primary-500); background-color: #eef2ff; }
+        .json-formatter {
+            background-color: #1e293b;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .btn-gradient {
+            background-image: linear-gradient(to right, #4f46e5, #ec4899);
+        }
+        .tooltip { position: relative; }
+        .tooltip .tooltip-text { visibility: hidden; width: max-content; background-color: #1e293b; color: #fff; text-align: center; border-radius: 6px; padding: 5px 10px; position: absolute; z-index: 1; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-size: 0.75rem; }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+        <div class="panel p-8 w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-4 gradient-text">API Key Required</h2>
+            <p class="text-text-light mb-6">Please enter your Google AI API key to use the app. Your key is stored securely in this session only.</p>
+            <input type="password" id="apiKeyInput" placeholder="Enter your API key here" class="w-full p-3 rounded-lg mb-4">
+            <button id="saveApiKeyBtn" class="w-full btn-gradient text-white font-bold py-3 px-4 rounded-xl hover:opacity-90 active:scale-95 transition duration-300">Save and Continue</button>
+            <div class="flex justify-between items-center mt-4">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="block text-sm text-primary-600 hover:text-secondary-500 underline">Get a Google AI Key</a>
+                <button id="forgetApiKeyBtn" class="text-sm text-primary-600 hover:text-secondary-500 underline">Forget Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 z-40 flex-col items-center justify-center bg-slate-900/60 hidden">
+        <div class="w-full max-w-md p-6 text-center">
+            <svg class="w-16 h-16 mx-auto mb-4" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4f46e5"/><stop offset="100%" stop-color="#ec4899"/></linearGradient></defs><circle cx="50" cy="50" r="45" fill="none" stroke="#e2e8f0" stroke-width="5"/><circle id="loading-circle" cx="50" cy="50" r="45" fill="none" stroke="url(#g)" stroke-width="5" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="212.05"><animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/></circle></svg>
+            <p id="loading-status" class="text-xl font-semibold text-white mb-2">Architecting your post...</p>
+            <div class="w-full bg-slate-200 rounded-full h-2.5"><div id="progress-bar" class="bg-gradient-to-r from-primary-500 to-secondary-500 h-2.5 rounded-full" style="width: 0%; transition: width 0.3s ease-in-out;"></div></div>
+            <p id="progress-percent" class="text-sm text-slate-300 mt-2">0%</p>
+            <button id="closeErrorBtn" class="mt-6 bg-white text-text-dark px-4 py-2 rounded-lg hidden">Close</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="max-w-7xl mx-auto">
+        <header class="text-center mb-10"><h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-2"><span class="gradient-text">Viral Post Architect</span><sup class="text-sm font-bold text-secondary-500 ml-1">PRO</sup></h1><p class="text-lg text-text-light max-w-3xl mx-auto">The definitive AI suite for producing high-retention social media content. Built for reliability and viral impact.</p></header>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Input Column -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="panel p-6 space-y-4">
+                    <h2 class="text-xl font-bold flex items-center"><div class="w-8 h-8 rounded-lg bg-indigo-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="rocket" class="w-5 h-5"></i></div>Step 1: Core Strategy</h2>
+                    <div><label class="block text-sm font-semibold text-text-light mb-2">Content Format</label><div class="grid grid-cols-2 gap-2"><button data-value="Carousel" class="format-btn strategy-btn text-center py-3 px-2 rounded-lg">Image Carousel</button><button data-value="Video Storyboard" class="format-btn strategy-btn text-center py-3 px-2 rounded-lg">Video Storyboard</button></div></div>
+                </div>
+                <div class="panel p-6 space-y-4">
+                     <h2 class="text-xl font-bold flex items-center"><div class="w-8 h-8 rounded-lg bg-indigo-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="paintbrush" class="w-5 h-5"></i></div>Step 2: Creative Brief</h2>
+                    <div><label class="block text-sm font-semibold text-text-light mb-2">Target Audience</label><select id="audienceSelect" class="w-full p-3 rounded-lg"><option value="Single Person">Single Person</option><option value="Couple">A Couple</option><option value="Friend Group">Friend Group</option><option value="Family">Family</option></select></div>
+                    <div>
+                        <label for="nicheInput" class="block text-sm font-semibold text-text-light mb-2">Topic (Optional)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="nicheInput" placeholder="Leave blank to generate a viral idea" class="w-full p-3 rounded-lg" maxlength="150"/>
+                             <button id="getTopicBtn" class="bg-slate-100 p-3 rounded-lg hover:bg-slate-200 transition-colors tooltip"><i data-lucide="wand-2" class="w-5 h-5"></i><span class="tooltip-text">Find Viral Topic (based on Audience)</span></button>
+                        </div>
+                         <div id="topicSpinner" class="hidden justify-center items-center pt-2"><div class="w-4 h-4 border-2 border-dashed rounded-full animate-spin border-primary-500"></div></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold text-text-light mb-2">Visual Style</label><select id="styleSelect" class="w-full p-3 rounded-lg"><option value="Vibrant and Cinematic">Vibrant & Cinematic</option><option value="Cozy and Warm, sepia tones">Cozy & Warm</option><option value="Moody and Dramatic, dark tones">Moody & Dramatic</option><option value="Minimalist and Clean">Minimalist & Clean</option><option value="Retro Film Look">Retro Film Look</option></select></div>
+                </div>
+
+                <div class="panel p-6 space-y-4">
+                     <h2 class="text-xl font-bold flex items-center"><div class="w-8 h-8 rounded-lg bg-indigo-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0"><i data-lucide="brain-circuit" class="w-5 h-5"></i></div>Step 3: Viral Engine</h2>
+                    <div><label class="block text-sm font-semibold text-text-light mb-2">Hook Type</label><select id="hookType" class="w-full p-3 rounded-lg"><option value="A controversial question">Controversial Question</option><option value="A shocking statistic">Shocking Statistic</option><option value="A relatable 'You' statement">Relatable "You" Statement</option><option value="An unpopular opinion">Unpopular Opinion</option></select></div>
+                    <div><label class="block text-sm font-semibold text-text-light mb-2">Call to Action (CTA)</label><select id="ctaType" class="w-full p-3 rounded-lg"><option value="Ask a question to drive comments">Drive Comments</option><option value="A directive to save this post for later">Encourage Saves</option><option value="A prompt to share with someone who needs it">Promote Shares</option><option value="A challenge for the audience">Audience Challenge</option></select></div>
+                </div>
+                <div class="sticky top-8 z-10 flex justify-center"><button id="generateBtn" class="w-full max-w-xs btn-gradient text-white font-bold py-4 px-4 rounded-xl hover:opacity-90 active:scale-95 transition duration-300 flex items-center justify-center text-lg shadow-lg shadow-primary-500/30 disabled:opacity-70 disabled:cursor-not-allowed"><span id="btnText">Generate</span></button></div>
+            </div>
+            <!-- Output Column -->
+            <div id="outputPanel" class="lg:col-span-2"></div>
+        </div>
+    </div>
+     <footer class="text-center mt-12 py-4">
+        <p class="text-sm text-text-light">Developed by Vivek Viswanathan</p>
+    </footer>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-8 right-8 z-50 bg-success-green text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+    const App = {
+        config: {
+            API_KEY: "",
+            STATE_STORAGE_KEY: 'viralPostArchitectState',
+            API_KEY_STORAGE_KEY: 'googleApiKey_session',
+            HISTORY_STORAGE_KEY: 'viralPostHistory_session'
+        },
+        state: {
+            current: { format: 'Carousel', audience: 'Single Person', style: 'Vibrant and Cinematic', topic: '', hook: 'A controversial question', cta: 'Ask a question to drive comments' },
+            history: [],
+            historyIndex: -1,
+            isGenerating: false,
+            blobUrls: [],
+            carouselIndex: 0,
+        },
+        
+        DOMElements: {},
+
+        init() {
+            this.DOMElements = {
+                apiKeyModal: document.getElementById('apiKeyModal'),
+                apiKeyInput: document.getElementById('apiKeyInput'),
+                saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
+                forgetApiKeyBtn: document.getElementById('forgetApiKeyBtn'),
+                generateBtn: document.getElementById('generateBtn'),
+                loadingOverlay: document.getElementById('loading-overlay'),
+                loadingStatus: document.getElementById('loading-status'),
+                progressBar: document.getElementById('progress-bar'),
+                progressPercent: document.getElementById('progress-percent'),
+                closeErrorBtn: document.getElementById('closeErrorBtn'),
+                outputPanel: document.getElementById('outputPanel'),
+                toast: document.getElementById('toast'),
+                toastMessage: document.getElementById('toast-message'),
+                loadingCircle: document.getElementById('loading-circle'),
+                getTopicBtn: document.getElementById('getTopicBtn'),
+                topicSpinner: document.getElementById('topicSpinner'),
+                nicheInput: document.getElementById('nicheInput'),
+            };
+
+            this.events.bind();
+            this.ui.loadStateFromStorage();
+            this.ui.updateInputsFromState();
+            this.ui.renderInitialOutput();
+            this.history.load();
+            this.auth.checkApiKey();
+            lucide.createIcons();
+        },
+
+        api: {
+            getApiUrl(type) {
+                const models = { text: 'gemini-2.5-flash-preview-05-20', image: 'gemini-2.5-flash-image-preview' };
+                return `https://generativelanguage.googleapis.com/v1beta/models/${models[type]}:generateContent?key=${App.config.API_KEY}`;
+            },
+
+            async fetchWithBackoff(url, options, retries = 3) {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json' } });
+                        if (response.ok) return response.json();
+                        const errorBody = await response.json();
+                        throw new Error(errorBody.error?.message || `API Error: ${response.status}`);
+                    } catch (error) {
+                        console.error(`Attempt ${i + 1} failed:`, error.message);
+                        if (i === retries - 1) throw error;
+                        await new Promise(res => setTimeout(res, 2000 * (i + 1)));
+                    }
+                }
+            },
+            
+            async fetchText(payload) {
+                const result = await this.fetchWithBackoff(this.getApiUrl('text'), { method: 'POST', body: JSON.stringify(payload) });
+                return result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            },
+
+            async fetchImage(prompt) {
+                if (!prompt || prompt.trim() === "") throw new Error(`No prompt was generated.`);
+                const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['IMAGE'] } };
+                const result = await this.fetchWithBackoff(this.getApiUrl('image'), { method: 'POST', body: JSON.stringify(payload) });
+                const candidate = result?.candidates?.[0];
+                if (!candidate) {
+                    const blockReason = result?.promptFeedback?.blockReason;
+                    if (blockReason) throw new Error(`Image blocked: ${blockReason}.`);
+                    throw new Error(`API returned no candidates.`);
+                }
+                const base64Data = candidate.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                if (!base64Data) {
+                    const textResponse = candidate.content?.parts?.[0]?.text;
+                    if (textResponse) throw new Error(`API failed: ${textResponse}`);
+                    throw new Error(`API returned no image data.`);
+                }
+                return `data:image/png;base64,${base64Data}`;
+            },
+        },
+        
+        core: {
+            async generate() {
+                if (App.state.isGenerating) return;
+                App.state.isGenerating = true;
+                App.ui.setGenerateButtonState(true);
+                App.ui.cleanupOldBlobs();
+                App.state.current = App.ui.getStateFromInputs();
+                App.ui.saveStateToStorage();
+
+                const { prompt, schema } = App.util.createMasterPromptAndSchema();
+                App.ui.showLoading(true, 0, 'Starting generation...');
+                
+                try {
+                    await App.ui.updateProgress(10, 'Drafting content strategy...');
+                    const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema } };
+                    const rawJsonResponse = await App.api.fetchText(payload);
+                    if (!rawJsonResponse) throw new Error("Received an empty response from the content API.");
+                    
+                    let fullContent = JSON.parse(rawJsonResponse);
+                    
+                    await App.ui.updateProgress(25, 'Validating creative brief...');
+                    App.util.validateAIResponse(fullContent);
+                    
+                    fullContent.blobUrlCache = {};
+
+                    App.ui.renderOutput(fullContent);
+
+                    if (App.state.current.format === 'Carousel') {
+                        await this.generateCarouselImages(fullContent);
+                    }
+                    
+                    await App.ui.updateProgress(95, 'Finalizing post...');
+                    App.state.history.push(fullContent);
+                    App.state.historyIndex = App.state.history.length - 1;
+                    App.history.save();
+                    App.ui.updateHistoryNav();
+
+                    await App.ui.updateProgress(100, 'Done!');
+                    setTimeout(() => App.ui.showLoading(false), 800);
+
+                } catch (e) {
+                    console.error("Generation failed:", e);
+                    if (e.message && e.message.toLowerCase().includes('api key not valid')) {
+                        App.ui.handleError(`API Key Not Valid. Please enter a valid key from your Google Cloud project.`);
+                        App.auth.forgetApiKey();
+                    } else {
+                        App.ui.handleError(`Generation Failed: ${e.message}`);
+                    }
+                } finally {
+                    App.state.isGenerating = false;
+                    App.ui.setGenerateButtonState(false);
+                }
+            },
+
+            async getViralTopic() {
+                App.ui.setTopicLoading(true);
+                const audience = App.ui.getStateFromInputs().audience;
+                try {
+                    const systemPrompt = "You are a social media trendspotter for an Indian audience. Based on live search data and the user's target audience, generate a single, highly specific, and viral content topic. The topic should be a short, catchy phrase, no more than 10 words. Respond with ONLY the topic phrase and nothing else.";
+                    
+                    const payload = {
+                        contents: [{ parts: [{ text: `Find a viral, relationship-related topic for an Instagram post targeting a young Indian ${audience}.` }] }],
+                        tools: [{ "google_search": {} }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    };
+                    const topic = await App.api.fetchText(payload);
+
+                    if (topic) {
+                        App.DOMElements.nicheInput.value = topic.trim().replace(/"/g, ''); // Clean up quotes
+                        App.ui.showToast('Viral topic generated!');
+                    } else {
+                        throw new Error("AI did not return a topic.");
+                    }
+                } catch (e) {
+                    console.error("Topic generation failed:", e);
+                    if (e.message && e.message.toLowerCase().includes('api key not valid')) {
+                        App.ui.showToast('API Key Not Valid. Please check your key.', 'error');
+                        App.auth.forgetApiKey();
+                    } else {
+                        App.ui.showToast(`Failed to get topic: ${e.message}`, 'error');
+                    }
+                } finally {
+                    App.ui.setTopicLoading(false);
+                }
+            },
+
+            async generateCarouselImages(content) {
+                const prompts = [content.image1Prompt, content.image2Prompt, content.image3Prompt];
+                for (let i = 0; i < prompts.length; i++) {
+                    try {
+                        if(content.blobUrlCache && content.blobUrlCache[i]) {
+                           App.ui.updateImage(i, content.blobUrlCache[i], prompts[i]);
+                           continue;
+                        }
+
+                        if (i > 0) await new Promise(res => setTimeout(res, 2000));
+                        await App.ui.updateProgress(40 + (i * 15), `Generating visual ${i + 1} of 3...`);
+                        const base64Src = await App.api.fetchImage(prompts[i]);
+                        const blobUrl = App.util.base64ToBlobURL(base64Src);
+                        App.state.blobUrls.push(blobUrl);
+                        
+                        if(content.blobUrlCache) content.blobUrlCache[i] = blobUrl;
+
+                        App.ui.updateImage(i, blobUrl, prompts[i]);
+                    } catch (err) {
+                        console.error(`Failed to generate image ${i}:`, err);
+                        App.ui.updateImage(i, null, prompts[i], err.message);
+                    }
+                }
+            },
+            
+            async regenerateImage(index, prompt) {
+                App.ui.setImageLoadingState(index, true);
+                try {
+                    const base64Src = await App.api.fetchImage(prompt);
+                    const blobUrl = App.util.base64ToBlobURL(base64Src);
+                    App.state.blobUrls.push(blobUrl);
+                    
+                    const currentHistoryItem = App.state.history[App.state.historyIndex];
+                    if(currentHistoryItem && currentHistoryItem.blobUrlCache) {
+                        currentHistoryItem.blobUrlCache[index] = blobUrl;
+                    }
+
+                    App.ui.updateImage(index, blobUrl, prompt);
+                } catch (err) {
+                    console.error(`Failed to regenerate image ${index}:`, err);
+                    App.ui.updateImage(index, null, prompt, err.message);
+                    App.ui.showToast('Image regeneration failed.', 'error');
+                }
+            },
+        },
+        
+        events: {
+            bind() {
+                const { DOMElements } = App;
+                DOMElements.generateBtn.addEventListener('click', () => App.core.generate());
+                DOMElements.getTopicBtn.addEventListener('click', () => App.core.getViralTopic());
+                DOMElements.closeErrorBtn.addEventListener('click', () => App.ui.showLoading(false));
+                DOMElements.saveApiKeyBtn.addEventListener('click', App.auth.saveApiKey);
+                DOMElements.forgetApiKeyBtn.addEventListener('click', App.auth.forgetApiKey);
+                DOMElements.apiKeyInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') App.auth.saveApiKey(); });
+                document.querySelectorAll('.format-btn').forEach(button => button.addEventListener('click', this.onFormatChange));
+                DOMElements.outputPanel.addEventListener('click', (e) => {
+                    const target = e.target.closest('button');
+                    if (!target) return;
+                    if (target.matches('.copy-btn')) this.onCopy(target);
+                    if (target.matches('.save-btn')) this.onSaveImage(target);
+                    if (target.matches('.regenerate-btn')) this.onRegenerateImage(target);
+                    if (target.matches('.history-nav')) this.onHistoryNav(target);
+                    if (target.id === 'downloadScriptBtn') this.onDownloadScript();
+                });
+            },
+            onFormatChange(e) {
+                document.querySelectorAll('.format-btn').forEach(btn => btn.classList.remove('active'));
+                const btn = e.currentTarget;
+                btn.classList.add('active');
+            },
+            onCopy(button) {
+                const textToCopy = decodeURIComponent(button.dataset.copyText);
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    App.ui.showToast('Copied to clipboard!');
+                } catch (err) {
+                    App.ui.showToast('Failed to copy text.', 'error');
+                }
+                document.body.removeChild(textArea);
+            },
+            onSaveImage(button) {
+                const img = document.getElementById(`imageOutput${button.dataset.imgId}`);
+                if (img && img.dataset.blobUrl) {
+                    const a = document.createElement('a');
+                    a.href = img.dataset.blobUrl;
+                    a.download = `viral-post-${parseInt(button.dataset.imgId) + 1}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                     App.ui.showToast('Download failed: Image not ready.', 'error');
+                }
+            },
+            onRegenerateImage(button) {
+                const index = parseInt(button.dataset.imgId);
+                const prompt = document.getElementById(`loader-${index}`).dataset.prompt;
+                App.core.regenerateImage(index, prompt);
+            },
+            onHistoryNav(button) {
+                const direction = parseInt(button.dataset.dir);
+                App.history.navigate(direction);
+            },
+            onDownloadScript() {
+                const currentContent = App.state.history[App.state.historyIndex];
+                if (currentContent && currentContent.veoPrompts) {
+                    let scriptText = `Viral Post Architect - Video Production Script\n`;
+                    scriptText += `Topic: ${currentContent.topicSuggestion}\n\n`;
+                    scriptText += `--- SCRIPT ---\n\n`;
+                    currentContent.veoPrompts.forEach(scene => {
+                        scriptText += `SCENE ${scene.scene}\n`;
+                        scriptText += `  VISUAL: ${scene.prompt}\n`;
+                        scriptText += `  VOICEOVER: ${scene.voiceover_line}\n`;
+                        scriptText += `  DURATION: ${scene.duration_seconds}s\n`;
+                        scriptText += `  SFX: ${scene.sfx_suggestion}\n\n`;
+                    });
+                    scriptText += `--- POST DETAILS ---\n`;
+                    scriptText += `Caption: ${currentContent.caption}\n`;
+                    scriptText += `Hashtags: ${currentContent.hashtags}\n`;
+
+                    const blob = new Blob([scriptText], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'viral_video_script.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            }
+        },
+
+        ui: {
+            renderInitialOutput() {
+                App.DOMElements.outputPanel.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full panel p-8 text-center fade-in">
+                    <i data-lucide="sparkles" class="w-16 h-16 gradient-text mb-4"></i>
+                    <h2 class="text-xl font-bold text-text-dark">Your Viral Post Awaits</h2>
+                    <p class="text-text-light mt-2 max-w-sm">Configure your content strategy on the left, then click 'Generate' to bring your vision to life with the power of AI.</p>
+                </div>`;
+                lucide.createIcons();
+            },
+            
+            renderOutput(content) {
+                App.state.carouselIndex = 0;
+                const mediaHTML = App.state.current.format === 'Carousel' ? this.createCarouselHTML(content) : this.createVideoHTML(content);
+                App.DOMElements.outputPanel.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <div class="panel">
+                        <div class="p-4 flex items-center justify-between border-b border-border-light">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 p-0.5"><div class="bg-white h-full w-full rounded-full flex items-center justify-center"><i data-lucide="user" class="text-text-dark"></i></div></div>
+                                <span class="font-bold text-sm text-text-dark">YourUsername</span>
+                            </div>
+                            <div id="historyNavContainer"></div>
+                        </div>
+                        ${mediaHTML}
+                        <div class="p-4 space-y-3">
+                            <div class="flex items-center space-x-4 text-text-dark"><i data-lucide="heart" class="w-7 h-7 hover:text-text-light cursor-pointer"></i><i data-lucide="message-circle" class="w-7 h-7 hover:text-text-light cursor-pointer"></i><i data-lucide="send" class="w-7 h-7 hover:text-text-light cursor-pointer"></i><i data-lucide="bookmark" class="w-7 h-7 ml-auto hover:text-text-light cursor-pointer"></i></div>
+                            <p class="text-sm font-semibold">Liked by creative_creator and others</p>
+                            <div class="text-sm text-text-dark space-y-1"><p><span class="font-bold">YourUsername</span> <span contenteditable="true" class="outline-none focus:bg-slate-100 p-1 rounded">${content.caption}</span></p><p contenteditable="true" class="text-text-light outline-none focus:bg-slate-100 p-1 rounded">${content.hashtags}</p></div>
+                            <p class="text-xs text-text-light cursor-pointer mt-2">View all comments</p>
+                        </div>
+                    </div>
+                    ${App.state.current.format === 'Video Storyboard' ? this.createStoryboardPanelHTML(content) : ''}
+                    <div class="panel p-6 space-y-4">
+                        <h3 class="text-lg font-bold">Export Content</h3>
+                        <button class="copy-btn w-full btn-gradient text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 active:scale-95 transition" data-copy-text="${encodeURIComponent(`${content.caption}\n\n${content.hashtags}`)}"><i data-lucide="copy" class="w-5 h-5 mr-2"></i>Copy Caption & Hashtags</button>
+                    </div>
+                </div>`;
+                lucide.createIcons();
+                this.updateHistoryNav();
+            },
+            
+            createCarouselHTML(content) {
+                const texts = [content.slide1Text, content.slide2Text, content.slide3Text];
+                return `<div class="space-y-4">${texts.map((text, i) => `
+                    <div class="panel p-2">
+                        <div class="aspect-[9/16] bg-slate-200 rounded-md relative image-container">
+                            <div class="skeleton-loader absolute inset-0 rounded-md flex items-center justify-center" id="loader-${i}" data-prompt="${App.util.escapeAttr(content[`image${i+1}Prompt`])}"><div class="w-full h-full shimmer"></div></div>
+                            <img id="imageOutput${i}" alt="Generated slide ${i+1}" class="absolute inset-0 w-full h-full object-cover rounded-md" style="opacity:0; visibility:hidden;">
+                            <div class="action-overlay absolute inset-0 rounded-md">
+                                <div class="absolute top-2 right-2 flex flex-col gap-2">
+                                    <button aria-label="Save Image" class="save-btn tooltip p-2 rounded-full bg-black/50 hover:bg-black/75 pointer-events-auto" data-img-id="${i}"><i data-lucide="download" class="w-4 h-4 text-white"></i><span class="tooltip-text">Download</span></button>
+                                    <button aria-label="Regenerate Image" class="regenerate-btn tooltip p-2 rounded-full bg-black/50 hover:bg-black/75 pointer-events-auto" data-img-id="${i}"><i data-lucide="refresh-cw" class="w-4 h-4 text-white"></i><span class="tooltip-text">Regenerate</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-2">
+                            <div class="flex justify-between items-start gap-2 bg-slate-50 rounded-md p-2 border border-border-light">
+                                <p class="text-sm text-text-light flex-1" contenteditable="true">${text || ''}</p>
+                                <button class="copy-btn p-2 rounded-full hover:bg-slate-200 flex-shrink-0" data-copy-text="${encodeURIComponent(text || '')}"><i data-lucide="copy" class="w-4 h-4 text-text-light"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}</div>`;
+            },
+            
+            createVideoHTML(content) {
+                 return `<div class="aspect-[9/16] bg-slate-200 rounded-b-xl flex flex-col justify-center items-center text-center p-4">
+                    <i data-lucide="film" class="w-16 h-16 text-slate-400 mx-auto"></i>
+                    <h3 class="font-bold text-text-dark mt-4">${content.topicSuggestion}</h3>
+                    <p class="text-xs mt-1 text-text-light">Video Production Script generated below.</p>
+                 </div>`;
+            },
+            
+            createStoryboardPanelHTML(content) {
+                const veoPrompts = content.veoPrompts || [];
+                return `<div class="panel p-4 sm:p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                        <h3 class="text-lg font-bold">Video Production Script (Veo-Ready)</h3>
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <button class="copy-btn text-xs font-bold py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 w-full" data-copy-text="${encodeURIComponent(JSON.stringify(veoPrompts, null, 2))}">COPY JSON</button>
+                            <button id="downloadScriptBtn" class="text-xs font-bold py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 w-full"><i data-lucide="download" class="w-4 h-4 inline-block mr-1"></i>TXT</button>
+                        </div>
+                    </div>
+                    <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">${veoPrompts.map((scene, i) => `
+                        <div class="flex gap-3 sm:gap-4">
+                            <div class="flex-shrink-0 flex flex-col items-center">
+                                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-primary-600">${scene.scene}</div>
+                                ${i < veoPrompts.length - 1 ? '<div class="w-px h-full bg-border-light"></div>' : ''}
+                            </div>
+                            <div class="w-full space-y-3">
+                                <div>
+                                    <div class="flex justify-between items-start gap-2">
+                                        <p class="font-semibold text-text-dark text-sm flex-1" contenteditable="true">${scene.prompt}</p>
+                                        <button class="copy-btn p-2 rounded-full hover:bg-slate-100 flex-shrink-0" data-copy-text="${encodeURIComponent(scene.prompt)}"><i data-lucide="copy" class="w-4 h-4 text-text-light"></i></button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between items-start gap-2 bg-slate-50 rounded-md p-2 border border-border-light">
+                                        <p class="text-xs text-text-light flex-1" contenteditable="true"><i data-lucide="mic" class="inline-block w-3 h-3 mr-2 text-text-light"></i>${scene.voiceover_line}</p>
+                                        <button class="copy-btn p-2 rounded-full hover:bg-slate-200 flex-shrink-0" data-copy-text="${encodeURIComponent(scene.voiceover_line)}"><i data-lucide="copy" class="w-4 h-4 text-text-light"></i></button>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-text-light font-mono pt-1">Duration: ${scene.duration_seconds}s | SFX: ${scene.sfx_suggestion}</p>
+                            </div>
+                        </div>`).join('') || '<p class="text-text-light text-sm">No video prompts were generated.</p>'}
+                    </div>
+                </div>`;
+            },
+            
+            updateImage(index, blobUrl, prompt, error = null) {
+                const loader = document.getElementById(`loader-${index}`);
+                const imageEl = document.getElementById(`imageOutput${index}`);
+                if (!loader || !imageEl) return;
+                
+                loader.dataset.prompt = App.util.escapeAttr(prompt);
+                imageEl.dataset.blobUrl = blobUrl || '';
+
+                if (error) {
+                    loader.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center text-center p-4 bg-white text-error-red rounded-lg"><i data-lucide="alert-triangle" class="w-8 h-8"></i><p class="text-xs mt-2 font-semibold">Image Failed</p><p class="text-[10px] mt-1 text-text-light">${error}</p></div>`;
+                    loader.style.display = 'flex';
+                    imageEl.style.opacity = '0';
+                    imageEl.style.visibility = 'hidden';
+                } else {
+                    imageEl.onload = () => {
+                        loader.style.display = 'none';
+                        imageEl.style.opacity = '1';
+                        imageEl.style.visibility = 'visible';
+                    };
+                    imageEl.onerror = () => this.updateImage(index, null, prompt, 'Browser could not load image data.');
+                    imageEl.src = blobUrl;
+                }
+                lucide.createIcons();
+            },
+
+            setImageLoadingState(index, isLoading) {
+                const loader = document.getElementById(`loader-${index}`);
+                const imageEl = document.getElementById(`imageOutput${index}`);
+                if (isLoading) {
+                    imageEl.style.opacity = '0';
+                    imageEl.style.visibility = 'hidden';
+                    imageEl.dataset.blobUrl = '';
+                    loader.style.display = 'flex';
+                    loader.innerHTML = `<div class="w-full h-full shimmer flex items-center justify-center rounded-lg"><p class="text-sm text-text-light">Regenerating...</p></div>`;
+                }
+            },
+            
+            cleanupOldBlobs() {
+                App.state.blobUrls.forEach(url => URL.revokeObjectURL(url));
+                App.state.blobUrls = [];
+            },
+
+            setTopicLoading(isLoading) {
+                const { getTopicBtn, topicSpinner } = App.DOMElements;
+                getTopicBtn.disabled = isLoading;
+                if(isLoading) {
+                    getTopicBtn.classList.add('hidden');
+                    topicSpinner.classList.remove('hidden');
+                    topicSpinner.classList.add('flex');
+                } else {
+                    getTopicBtn.classList.remove('hidden');
+                    topicSpinner.classList.add('hidden');
+                    topicSpinner.classList.remove('flex');
+                }
+            },
+
+            updateInputsFromState() {
+                const s = App.state.current;
+                document.querySelectorAll('.format-btn').forEach(b => b.classList.toggle('active', b.dataset.value === s.format));
+                document.getElementById('audienceSelect').value = s.audience;
+                App.DOMElements.nicheInput.value = s.topic;
+                document.getElementById('styleSelect').value = s.style;
+                document.getElementById('hookType').value = s.hook;
+                document.getElementById('ctaType').value = s.cta;
+            },
+
+            getStateFromInputs() {
+                return {
+                    format: document.querySelector('.format-btn.active').dataset.value,
+                    audience: document.getElementById('audienceSelect').value,
+                    topic: App.DOMElements.nicheInput.value.trim(),
+                    style: document.getElementById('styleSelect').value,
+                    hook: document.getElementById('hookType').value,
+                    cta: document.getElementById('ctaType').value,
+                };
+            },
+            
+            showLoading(isLoading, percent, status) {
+                const { loadingOverlay, progressBar, loadingCircle, closeErrorBtn } = App.DOMElements;
+                if(isLoading) {
+                    progressBar.style.backgroundColor = ''; 
+                    progressBar.classList.remove('bg-error-red');
+                    loadingCircle.style.animation = '';
+                    closeErrorBtn.classList.add('hidden');
+                    loadingOverlay.classList.remove('hidden');
+                    loadingOverlay.classList.add('flex');
+                    if (percent !== undefined && status !== undefined) this.updateProgress(percent, status);
+                } else {
+                    loadingOverlay.classList.add('hidden');
+                    loadingOverlay.classList.remove('flex');
+                }
+            },
+
+            async updateProgress(percent, status) {
+                const { progressBar, progressPercent, loadingStatus } = App.DOMElements;
+                return new Promise(resolve => {
+                    progressBar.style.width = `${percent}%`;
+                    progressPercent.textContent = `${percent}%`;
+                    loadingStatus.textContent = status;
+                    setTimeout(resolve, 100);
+                });
+            },
+            
+            handleError(msg) { 
+                const { loadingStatus, progressBar, loadingCircle, closeErrorBtn } = App.DOMElements;
+                loadingStatus.textContent = msg;
+                progressBar.style.width = '100%';
+                progressBar.classList.add('bg-error-red');
+                loadingCircle.style.animation = 'none';
+                closeErrorBtn.classList.remove('hidden');
+            },
+            
+            showToast(message, type = 'success') {
+                const { toast, toastMessage } = App.DOMElements;
+                toastMessage.textContent = message;
+                toast.className = `fixed bottom-8 right-8 z-50 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${type === 'success' ? 'bg-success-green' : 'bg-error-red'}`;
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                }, 3000);
+            },
+            
+            setGenerateButtonState(isGenerating) {
+                App.DOMElements.generateBtn.disabled = isGenerating;
+                App.DOMElements.generateBtn.querySelector('#btnText').textContent = isGenerating ? 'Generating...' : 'Generate';
+            },
+
+            saveStateToStorage() {
+                try {
+                    localStorage.setItem(App.config.STATE_STORAGE_KEY, JSON.stringify(this.getStateFromInputs()));
+                } catch (e) { console.warn("Could not save state to localStorage", e); }
+            },
+            
+            loadStateFromStorage() {
+                try {
+                    const savedState = localStorage.getItem(App.config.STATE_STORAGE_KEY);
+                    if (savedState) App.state.current = JSON.parse(savedState);
+                } catch (e) { console.warn("Could not load state from localStorage", e); }
+            },
+            
+            updateHistoryNav() {
+                const historyNavContainer = document.getElementById('historyNavContainer');
+                if (historyNavContainer) {
+                    historyNavContainer.innerHTML = App.history.renderNav();
+                    lucide.createIcons();
+                }
+            }
+        },
+
+        history: {
+             load() {
+                try {
+                    const savedHistory = JSON.parse(sessionStorage.getItem(App.config.HISTORY_STORAGE_KEY));
+                    if (savedHistory) {
+                        savedHistory.forEach(item => item.blobUrlCache = {});
+                        App.state.history = savedHistory;
+                        App.state.historyIndex = App.state.history.length - 1;
+                    }
+                } catch (e) { console.warn("Could not load history", e); }
+            },
+            save() {
+                try {
+                    sessionStorage.setItem(App.config.HISTORY_STORAGE_KEY, JSON.stringify(App.state.history));
+                } catch (e) { console.warn("Could not save history", e); }
+            },
+            navigate(direction) {
+                const newIndex = App.state.historyIndex + direction;
+                if (newIndex >= 0 && newIndex < App.state.history.length) {
+                    App.state.historyIndex = newIndex;
+                    const content = App.state.history[newIndex];
+                    App.ui.cleanupOldBlobs();
+                    App.ui.renderOutput(content);
+                    if (content.veoPrompts) {
+                       // Just show the prompts, no need to regenerate
+                    } else {
+                       App.core.generateCarouselImages(content);
+                    }
+                }
+            },
+            renderNav() {
+                const { history, historyIndex } = App.state;
+                if (history.length <= 1) return '';
+                return `<div class="flex items-center gap-2">
+                    <button class="history-nav p-1 rounded-md hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" data-dir="-1" ${historyIndex === 0 ? 'disabled' : ''}><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                    <span class="text-xs text-text-light">${historyIndex + 1} / ${history.length}</span>
+                    <button class="history-nav p-1 rounded-md hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" data-dir="1" ${historyIndex === history.length - 1 ? 'disabled' : ''}><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
+                </div>`;
+            }
+        },
+
+        auth: {
+            checkApiKey() {
+                const key = sessionStorage.getItem(App.config.API_KEY_STORAGE_KEY);
+                if (key) {
+                    App.config.API_KEY = key;
+                    App.DOMElements.apiKeyModal.classList.add('hidden');
+                } else {
+                    App.DOMElements.apiKeyModal.classList.remove('hidden');
+                }
+            },
+            saveApiKey() {
+                const key = App.DOMElements.apiKeyInput.value.trim();
+                if (key) {
+                    App.config.API_KEY = key;
+                    sessionStorage.setItem(App.config.API_KEY_STORAGE_KEY, key);
+                    App.DOMElements.apiKeyModal.classList.add('hidden');
+                    App.ui.showToast('API Key saved for this session.');
+                } else {
+                    alert('Please enter a valid API key.');
+                }
+            },
+            forgetApiKey() {
+                sessionStorage.removeItem(App.config.API_KEY_STORAGE_KEY);
+                App.config.API_KEY = "";
+                App.DOMElements.apiKeyInput.value = "";
+                App.DOMElements.apiKeyModal.classList.remove('hidden');
+                App.ui.showToast('API Key forgotten.');
+            }
+        },
+
+        util: {
+            createMasterPromptAndSchema() {
+                const s = App.state.current;
+                const topicInstruction = s.topic ? `based on the specific topic: "${s.topic}"` : "by inventing a new, viral, and highly relatable topic from scratch for social media";
+                const basePrompt = `You are a viral content strategist for an Indian audience. Create a post for a modern Indian ${s.audience}. The visual style is "${s.style}". The post must start with a hook that is a "${s.hook}" and end with a call to action that aims to "${s.cta}". Generate the content ${topicInstruction}. Ensure the tone is engaging and authentic.`;
+                const imagePromptDesc = `A hyper-realistic, cinematic photo prompt. Describe the scene, subjects, lighting, and composition. The visual style must be: ${s.style}. Ensure the subjects are modern Indian people. The image should look like a professional, high-quality social media post. Negative prompt: avoid distorted hands, ugly faces, unrealistic angles, extra limbs, bad anatomy, text, watermarks, cartoonish features.`;
+                
+                if (s.format === 'Video Storyboard') {
+                    const prompt = `${basePrompt} You will structure your entire output as a single JSON object. This object will contain a 'topicSuggestion', a 'caption', 'hashtags', and a 'veoPrompts' array. CRITICAL: First, define a consistent main character (e.g., "A young woman in her mid-20s named Anjali, with shoulder-length black hair, wearing a stylish blue linen shirt") and a consistent background/setting (e.g., "a modern, brightly lit co-working space in Bangalore"). You MUST use this exact character and setting description in every single 'prompt' you generate for the scenes to ensure absolute visual continuity. Break down the narrative into a series of logical scenes. For each scene, create an object in the 'veoPrompts' array. Each object must contain: 1. a 'scene' number, 2. a 'prompt' for a video generation model like Veo, which is hyper-detailed, describing camera angles (e.g., close-up, wide shot), camera movement (e.g., slow pan, dolly zoom), and specific actions, always including the consistent character and background. 3. a 'duration_seconds' which MUST NOT exceed 8 seconds. 4. a 'voiceover_line' containing the corresponding part of the script, written in a conversational, modern Indian English style. 5. a 'sfx_suggestion' with a brief suggestion for background music or a sound effect (e.g., "Uplifting synth music", "Sound of a notification ping").`;
+                    const schema = {
+                        type: 'OBJECT',
+                        properties: {
+                            topicSuggestion: { type: 'STRING' },
+                            veoPrompts: {
+                                type: 'ARRAY',
+                                items: {
+                                    type: 'OBJECT',
+                                    properties: {
+                                        scene: { type: 'NUMBER' },
+                                        prompt: { type: 'STRING', description: `A detailed, cinematic video prompt including the consistent character and setting. Style: ${s.style}. Subjects: Modern Indian ${s.audience}.` },
+                                        duration_seconds: { type: 'NUMBER' },
+                                        voiceover_line: { type: 'STRING', description: 'A line of the voiceover script in modern Indian English.'},
+                                        sfx_suggestion: { type: 'STRING' }
+                                    },
+                                    required: ["scene", "prompt", "duration_seconds", "voiceover_line", "sfx_suggestion"]
+                                }
+                            },
+                            caption: { type: 'STRING' },
+                            hashtags: { type: 'STRING' }
+                        }
+                    };
+                    return { prompt, schema };
+                } else { // Carousel
+                    const prompt = basePrompt;
+                    const schema = { 
+                        type: 'OBJECT', 
+                        properties: { 
+                            topicSuggestion: { type: 'STRING' }, 
+                            slide1Text: { type: 'STRING' }, 
+                            slide2Text: { type: 'STRING' }, 
+                            slide3Text: { type: 'STRING' }, 
+                            caption: { type: 'STRING' }, 
+                            hashtags: { type: 'STRING' }, 
+                            image1Prompt: { type: 'STRING', description: `${imagePromptDesc} This is the opening shot, visually representing the hook.` }, 
+                            image2Prompt: { type: 'STRING', description: `${imagePromptDesc} This shot continues the story.` }, 
+                            image3Prompt: { type: 'STRING', description: `${imagePromptDesc} This shot shows the conclusion.` } 
+                        } 
+                    };
+                    return { prompt, schema };
+                }
+            },
+            validateAIResponse(content) {
+                const fields = App.state.current.format === 'Carousel'
+                    ? ['topicSuggestion', 'slide1Text', 'caption', 'hashtags', 'image1Prompt', 'image2Prompt', 'image3Prompt']
+                    : ['topicSuggestion', 'veoPrompts', 'caption', 'hashtags'];
+                const missing = fields.filter(f => !content[f] || (Array.isArray(content[f]) && !content[f].length) || (typeof content[f] === 'string' && !content[f].trim()));
+                if (missing.length > 0) throw new Error(`AI response was incomplete. Missing: ${missing.join(', ')}.`);
+            },
+            escapeAttr: str => str.replace(/"/g, '&quot;'),
+            base64ToBlobURL(base64Str) {
+                if (!base64Str) return null;
+                const [header, data] = base64Str.split(',');
+                if (!header || !data) return null;
+                const mimeMatch = header.match(/:(.*?);/);
+                if (!mimeMatch) return null;
+                const mime = mimeMatch[1];
+                const bstr = atob(data);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                const blob = new Blob([u8arr], { type: mime });
+                return URL.createObjectURL(blob);
+            }
+        }
+    };
+    
+    document.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
+</body>
+</html>
+
